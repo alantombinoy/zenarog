@@ -22,21 +22,37 @@ export interface DrugSearchResult {
 }
 
 export async function searchDrug(drugName: string): Promise<DrugSearchResult | null> {
-  try {
-    const response = await axios.get(
-      `${OPENFDA_BASE_URL}/label.json`,
-      {
-        params: {
-          search: `openfda.brand_name:"${drugName}"`,
-          limit: 5
+  if (!drugName || drugName === 'Unknown') return null
+
+  const cleanName = drugName.trim().replace(/[^\w\s]/g, '')
+  
+  const searchQueries = [
+    `openfda.brand_name:"${cleanName}"`,
+    `openfda.generic_name:"${cleanName}"`,
+    `openfda.brand_name:${cleanName}*`,
+    `openfda.generic_name:${cleanName}*`
+  ]
+
+  for (const query of searchQueries) {
+    try {
+      const response = await axios.get(
+        `${OPENFDA_BASE_URL}/label.json`,
+        {
+          params: {
+            search: query,
+            limit: 3
+          }
         }
+      )
+      if (response.data?.results?.length > 0) {
+        return response.data
       }
-    )
-    return response.data
-  } catch (error) {
-    console.error('Error searching drug:', error)
-    return null
+    } catch (error) {
+      continue
+    }
   }
+
+  return null
 }
 
 export async function searchDrugByGeneric(genericName: string): Promise<DrugSearchResult | null> {

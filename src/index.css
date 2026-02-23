@@ -26,19 +26,85 @@
 .fitness-theme {
   --primary: #f59e0b;
   --primary-dark: #d97706;
-  --primary-light: #fef3c7;
+  --primary-light: rgba(245, 158, 11, 0.2);
   --secondary: #8b5cf6;
   --bg-color: #0f0f0f;
   --card-bg: #1a1a1a;
-  --text-primary: #ffffff;
+  --text-primary: #fafafa;
   --text-secondary: #a3a3a3;
   --gray-50: #1a1a1a;
   --gray-100: #262626;
   --gray-200: #333333;
   --gray-300: #404040;
+  --gray-400: #525252;
+  --gray-500: #737373;
+  --gray-600: #a3a3a3;
   --gray-700: #d4d4d4;
   --gray-800: #e5e5e5;
   --gray-900: #fafafa;
+}
+
+.fitness-theme .page-title,
+.fitness-theme .stat-value,
+.fitness-theme h1,
+.fitness-theme h2,
+.fitness-theme h3 {
+  color: #fafafa !important;
+}
+
+.fitness-theme .page-subtitle,
+.fitness-theme .stat-label,
+.fitness-theme .text-secondary {
+  color: #a3a3a3 !important;
+}
+
+.fitness-theme .card {
+  background: #1a1a1a;
+  border-color: #333333;
+}
+
+.fitness-theme .input {
+  background: #262626;
+  border-color: #404040;
+  color: #fafafa;
+}
+
+.fitness-theme .input::placeholder {
+  color: #737373;
+}
+
+.fitness-theme .badge-success {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+
+.fitness-theme .badge-warning {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+
+.fitness-theme .badge-danger {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.fitness-theme .nav-link,
+.fitness-theme .btn-secondary {
+  color: #d4d4d4;
+}
+
+.fitness-theme .btn-secondary:hover {
+  background: #333333;
+}
+
+.fitness-theme .empty-state {
+  color: #737373;
+}
+
+.fitness-theme .workout-item,
+.fitness-theme .meal-item {
+  background: #262626;
+  border: 1px solid #333333;
 }
 
 .medicine-theme {
@@ -681,4 +747,47 @@ tr:hover {
   .grid-2, .grid-3, .grid-4 {
     grid-template-columns: 1fr;
   }
+}
+
+* {
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+.card, .btn, .input, .upload-zone, .nav-link {
+  transition: all 200ms ease;
+}
+
+.upload-zone:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.15);
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.4s ease-out forwards;
 }
