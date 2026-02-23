@@ -1,0 +1,16 @@
+{
+  "name": "Zenarog",
+  "short_name": "Zenarog",
+  "description": "Fitness & Medication Tracker",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
