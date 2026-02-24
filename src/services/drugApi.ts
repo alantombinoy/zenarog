@@ -47,7 +47,9 @@ export async function searchDrug(drugName: string): Promise<DrugSearchResult | n
       if (response.data?.results?.length > 0) {
         return response.data
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error.response?.status === 404) continue
+      console.log('FDA search error:', error.message)
       continue
     }
   }
