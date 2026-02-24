@@ -11,6 +11,7 @@ import MedScanner from './pages/medscan/MedScanner'
 import MedTable from './pages/medicine/MedTable'
 import MedCalendar from './pages/medicine/MedCalendar'
 import MedTracker from './pages/medicine/MedTracker'
+import MedicalChatBot from './components/MedicalChatBot'
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="tracker" element={<MedTracker />} />
         </Route>
       </Routes>
+      <MedicalChatBot />
     </BrowserRouter>
   )
 }

@@ -265,7 +265,7 @@ export default function MedTable() {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                      {med.times.map((time, i) => (
+                      {(med.times || []).map((time, i) => (
                         <span key={i} className="badge" style={{ background: 'var(--gray-100)', color: 'var(--text-secondary)' }}>
                           <Clock size={12} style={{ marginRight: '0.25rem' }} />
                           {time}
