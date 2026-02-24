@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { addDoc, collection } from 'firebase/firestore'
 import { db, auth } from '../../services/firebase'
 import { searchDrug, DrugInfo } from '../../services/drugApi'
 import { analyzeMedicationImage } from '../../services/openRouter'
 import { 
-  ScanLine, Upload, Loader2, AlertCircle, Pill, Activity, FileText, 
-  ShieldAlert, CheckCircle, XCircle, Info, ArrowRight, RefreshCw
+  ScanLine, Upload, AlertCircle, Pill, Activity, 
+  ShieldAlert, CheckCircle, Info, ArrowRight, RefreshCw, Plus
 } from 'lucide-react'
 
 interface ScanResult {
@@ -41,6 +41,8 @@ export default function MedScanner() {
   const [aiData, setAiData] = useState<ScanResult['aiData'] | null>(null)
   const [showDetails, setShowDetails] = useState(false)
   const [verified, setVerified] = useState(false)
+  const [savingToMeds, setSavingToMeds] = useState(false)
+  const [savedToMeds, setSavedToMeds] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -163,8 +165,38 @@ export default function MedScanner() {
     setAiData(null)
     setVerified(false)
     setShowDetails(false)
+    setSavedToMeds(false)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
+    }
+  }
+
+  const addToMyMedications = async () => {
+    if (!drugInfo || !aiData) return
+    
+    setSavingToMeds(true)
+    try {
+      const userId = auth.currentUser?.uid || 'demo-user'
+      await addDoc(collection(db, 'medications'), {
+        userId,
+        name: drugInfo.brand_name?.[0] || aiData.dosage || 'Unknown',
+        dosage: aiData.dosage || 'See packaging',
+        frequency: 'daily',
+        times: ['08:00'],
+        startDate: new Date().toISOString().split('T')[0],
+        notes: aiData.manufacturer ? `Manufacturer: ${aiData.manufacturer}` : '',
+        addedToCalendar: false,
+        createdAt: new Date().toISOString(),
+        scannedFrom: 'MedScanner',
+        verified
+      })
+      setSavedToMeds(true)
+      alert('Added to My Medications!')
+    } catch (err: any) {
+      console.error('Error adding medication:', err)
+      alert(`Error: ${err.message}`)
+    } finally {
+      setSavingToMeds(false)
     }
   }
 
@@ -491,6 +523,38 @@ export default function MedScanner() {
               >
                 {showDetails ? 'Show Less' : 'View More Details'}
                 <ArrowRight size={16} style={{ transition: 'transform 0.2s' }} />
+              </button>
+
+              <button
+                onClick={addToMyMedications}
+                disabled={savingToMeds || savedToMeds}
+                style={{
+                  marginTop: '0.75rem',
+                  width: '100%',
+                  padding: '0.75rem',
+                  background: savedToMeds ? '#10b981' : '#06b6d4',
+                  border: 'none',
+                  color: 'white',
+                  borderRadius: '0.5rem',
+                  cursor: savingToMeds || savedToMeds ? 'default' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {savingToMeds ? (
+                  <>Saving...</>
+                ) : savedToMeds ? (
+                  <>
+                    <CheckCircle size={16} /> Added to My Medications
+                  </>
+                ) : (
+                  <>
+                    <Plus size={16} /> Add to My Medications
+                  </>
+                )}
               </button>
 
               {showDetails && (

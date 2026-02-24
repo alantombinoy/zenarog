@@ -1,5 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Pill, Calendar, Clock, Trash2, Plus, Check } from 'lucide-react'
+import { db } from '../../services/firebase'
+import { collection, addDoc, onSnapshot, deleteDoc, doc, query, where } from 'firebase/firestore'
+import { auth } from '../../services/firebase'
 
 interface Medication {
   id: string
@@ -21,30 +24,8 @@ const frequencies = {
 }
 
 export default function MedTable() {
-  const [medications, setMedications] = useState<Medication[]>([
-    {
-      id: '1',
-      name: 'Paracetamol',
-      dosage: '500mg',
-      frequency: 'daily',
-      times: ['08:00'],
-      startDate: '2026-02-23',
-      notes: 'For fever',
-      addedToCalendar: false
-    },
-    {
-      id: '2',
-      name: 'Amoxicillin',
-      dosage: '250mg',
-      frequency: 'twice_daily',
-      times: ['08:00', '20:00'],
-      startDate: '2026-02-20',
-      endDate: '2026-02-27',
-      notes: 'Complete full course',
-      addedToCalendar: true
-    }
-  ])
-
+  const [medications, setMedications] = useState<Medication[]>([])
+  const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [newMed, setNewMed] = useState({
     name: '',
@@ -55,28 +36,67 @@ export default function MedTable() {
     notes: ''
   })
 
-  const addMedication = () => {
-    if (!newMed.name || !newMed.dosage) return
-    
-    const med: Medication = {
-      id: Date.now().toString(),
-      ...newMed,
-      addedToCalendar: false
+  useEffect(() => {
+    if (!db) {
+      console.error('Firestore not initialized')
+      setLoading(false)
+      return
     }
-    setMedications([...medications, med])
-    setNewMed({
-      name: '',
-      dosage: '',
-      frequency: 'daily',
-      times: ['08:00'],
-      startDate: new Date().toISOString().split('T')[0],
-      notes: ''
+    
+    const userId = auth.currentUser?.uid || 'demo-user'
+    const q = query(collection(db, 'medications'), where('userId', '==', userId))
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const meds = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Medication[]
+      setMedications(meds)
+      setLoading(false)
+    }, (error) => {
+      console.error('Error fetching medications:', error)
+      alert(`Error fetching: ${error.message}`)
+      setLoading(false)
     })
-    setShowForm(false)
+
+    return () => unsubscribe()
+  }, [])
+
+  const addMedication = async () => {
+    if (!newMed.name || !newMed.dosage) {
+      alert('Please enter medication name and dosage')
+      return
+    }
+
+    try {
+      const userId = auth.currentUser?.uid || 'demo-user'
+      const medData = {
+        userId,
+        ...newMed,
+        addedToCalendar: false,
+        createdAt: new Date().toISOString()
+      }
+
+      await addDoc(collection(db, 'medications'), medData)
+
+      setNewMed({
+        name: '',
+        dosage: '',
+        frequency: 'daily',
+        times: ['08:00'],
+        startDate: new Date().toISOString().split('T')[0],
+        notes: ''
+      })
+      setShowForm(false)
+      alert('Medication added successfully!')
+    } catch (error: any) {
+      console.error('Error adding medication:', error)
+      alert(`Error: ${error.message}`)
+    }
   }
 
-  const deleteMedication = (id: string) => {
-    setMedications(medications.filter(m => m.id !== id))
+  const deleteMedication = async (id: string) => {
+    await deleteDoc(doc(db, 'medications', id))
   }
 
   const addToCalendar = (med: Medication) => {
@@ -88,9 +108,9 @@ export default function MedTable() {
         description: med.notes
       }
     })
-    
+
     console.log('Adding to calendar:', calendarEvents)
-    setMedications(medications.map(m => 
+    setMedications(medications.map(m =>
       m.id === med.id ? { ...m, addedToCalendar: true } : m
     ))
     alert(`Added ${med.name} to calendar!\n\nTimes: ${med.times.join(', ')}`)
@@ -125,7 +145,7 @@ export default function MedTable() {
       {showForm && (
         <div className="card" style={{ marginBottom: '1.5rem' }}>
           <h3 style={{ marginBottom: '1rem' }}>Add New Medication</h3>
-          
+
           <div className="grid-2">
             <div className="form-group">
               <label className="form-label">Medication Name</label>
@@ -152,7 +172,7 @@ export default function MedTable() {
           <div className="grid-2">
             <div className="form-group">
               <label className="form-label">Frequency</label>
-              <select 
+              <select
                 className="input"
                 value={newMed.frequency}
                 onChange={(e) => setNewMed({ ...newMed, frequency: e.target.value as Medication['frequency'] })}
@@ -261,7 +281,7 @@ export default function MedTable() {
                         Added
                       </span>
                     ) : (
-                      <button 
+                      <button
                         className="add-calendar-btn"
                         onClick={() => addToCalendar(med)}
                       >
@@ -271,8 +291,8 @@ export default function MedTable() {
                     )}
                   </td>
                   <td>
-                    <button 
-                      className="btn btn-secondary" 
+                    <button
+                      className="btn btn-secondary"
                       onClick={() => deleteMedication(med.id)}
                       style={{ padding: '0.5rem' }}
                     >
@@ -285,12 +305,16 @@ export default function MedTable() {
           </table>
         </div>
 
-        {medications.length === 0 && (
+        {loading ? (
+          <div className="empty-state">
+            <p>Loading medications...</p>
+          </div>
+        ) : medications.length === 0 ? (
           <div className="empty-state">
             <Pill size={48} style={{ marginBottom: '1rem', opacity: 0.3 }} />
             <p>No medications added yet</p>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   )

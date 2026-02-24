@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import EntryPage from './pages/EntryPage'
 import FitnessLayout from './components/FitnessLayout'
 import MedicineLayout from './components/MedicineLayout'
@@ -10,7 +10,7 @@ import MedicineDashboard from './pages/medicine/MedicineDashboard'
 import MedScanner from './pages/medscan/MedScanner'
 import MedTable from './pages/medicine/MedTable'
 import MedCalendar from './pages/medicine/MedCalendar'
-import MedHistory from './pages/medscan/MedHistory'
+import MedTracker from './pages/medicine/MedTracker'
 
 export default function App() {
   return (
@@ -30,7 +30,7 @@ export default function App() {
           <Route path="scan" element={<MedScanner />} />
           <Route path="table" element={<MedTable />} />
           <Route path="calendar" element={<MedCalendar />} />
-          <Route path="history" element={<MedHistory />} />
+          <Route path="tracker" element={<MedTracker />} />
         </Route>
       </Routes>
     </BrowserRouter>

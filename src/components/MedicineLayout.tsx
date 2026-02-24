@@ -1,12 +1,12 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { 
   ScanLine, 
-  History, 
   LogOut,
   Heart,
   Pill,
   Calendar,
-  LayoutDashboard
+  LayoutDashboard,
+  CheckCircle
 } from 'lucide-react'
 
 export default function MedicineLayout() {
@@ -47,9 +47,9 @@ export default function MedicineLayout() {
               <Calendar size={20} />
               Calendar
             </NavLink>
-            <NavLink to="/medicine/history" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-              <History size={20} />
-              History
+            <NavLink to="/medicine/tracker" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+              <CheckCircle size={20} />
+              Tracker
             </NavLink>
           </div>
         </nav>
