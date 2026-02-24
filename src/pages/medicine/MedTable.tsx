@@ -294,6 +294,7 @@ export default function MedTable() {
                     )}
                   </td>
                   <td>
+<<<<<<< HEAD
                     {isScanned ? (
                       <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>-</span>
                     ) : (
@@ -306,6 +307,16 @@ export default function MedTable() {
                         ))}
                       </div>
                     )}
+=======
+                    <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                      {(med.times || []).map((time, i) => (
+                        <span key={i} className="badge" style={{ background: 'var(--gray-100)', color: 'var(--text-secondary)' }}>
+                          <Clock size={12} style={{ marginRight: '0.25rem' }} />
+                          {time}
+                        </span>
+                      ))}
+                    </div>
+>>>>>>> dae3cce39336175a0382a3f0ef6db949571e4620
                   </td>
                   <td>{med.startDate ? (typeof med.startDate === 'object' ? new Date(med.startDate).toLocaleDateString() : med.startDate) : (med.scannedAt ? new Date(med.scannedAt).toLocaleDateString() : '-')}</td>
                   <td>
