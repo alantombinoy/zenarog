@@ -65,7 +65,9 @@ export default function MedScanner() {
     
     setSaving(true)
     try {
+      const userId = auth.currentUser?.uid || 'demo-user'
       const medData = {
+        userId,
         imageUrl: imagePreview,
         brandName: insight.medicine?.brand_name || 'Unknown',
         genericName: insight.medicine?.generic_name || [],

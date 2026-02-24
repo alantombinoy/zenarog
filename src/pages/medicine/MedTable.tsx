@@ -6,14 +6,27 @@ import { auth } from '../../services/firebase'
 
 interface Medication {
   id: string
-  name: string
-  dosage: string
-  frequency: 'daily' | 'twice_daily' | 'weekly' | 'as_needed'
-  times: string[]
-  startDate: string
+  name?: string
+  dosage?: string
+  frequency?: 'daily' | 'twice_daily' | 'weekly' | 'as_needed'
+  times?: string[]
+  startDate?: string
   endDate?: string
-  notes: string
-  addedToCalendar: boolean
+  notes?: string
+  addedToCalendar?: boolean
+  // Scanned medication fields
+  brandName?: string
+  genericName?: string | string[]
+  strength?: string
+  dosageForm?: string
+  manufacturer?: string
+  uses?: string[]
+  warnings?: string[]
+  sideEffects?: string[]
+  riskLevel?: string
+  requiresPrescription?: boolean
+  scannedAt?: Date
+  imageUrl?: string
 }
 
 const frequencies = {
@@ -100,6 +113,10 @@ export default function MedTable() {
   }
 
   const addToCalendar = (med: Medication) => {
+    if (!med.times || med.times.length === 0) {
+      alert('No times set for this medication')
+      return
+    }
     const calendarEvents = med.times.map(time => {
       return {
         title: `${med.name} - ${med.dosage}`,
@@ -251,29 +268,46 @@ export default function MedTable() {
               </tr>
             </thead>
             <tbody>
-              {medications.map(med => (
+              {medications.map(med => {
+                const isScanned = !!med.brandName
+                return (
                 <tr key={med.id}>
                   <td>
-                    <strong>{med.name}</strong>
+                    <strong>{med.name || med.brandName || 'Unknown'}</strong>
+                    {med.genericName && med.genericName.length > 0 && (
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                        {Array.isArray(med.genericName) ? med.genericName.join(', ') : med.genericName}
+                      </p>
+                    )}
                     {med.notes && <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{med.notes}</p>}
                   </td>
-                  <td>{med.dosage}</td>
+                  <td>{med.dosage || med.strength || '-'}</td>
                   <td>
-                    <span className="badge badge-success">
-                      {frequencies[med.frequency]}
-                    </span>
+                    {isScanned ? (
+                      <span className="badge" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>
+                        Scanned
+                      </span>
+                    ) : (
+                      <span className="badge badge-success">
+                        {med.frequency ? (frequencies[med.frequency] || med.frequency) : 'N/A'}
+                      </span>
+                    )}
                   </td>
                   <td>
-                    <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                      {med.times.map((time, i) => (
-                        <span key={i} className="badge" style={{ background: 'var(--gray-100)', color: 'var(--text-secondary)' }}>
-                          <Clock size={12} style={{ marginRight: '0.25rem' }} />
-                          {time}
-                        </span>
-                      ))}
-                    </div>
+                    {isScanned ? (
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>-</span>
+                    ) : (
+                      <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                        {(med.times || []).map((time: string, i: number) => (
+                          <span key={i} className="badge" style={{ background: 'var(--gray-100)', color: 'var(--text-secondary)' }}>
+                            <Clock size={12} style={{ marginRight: '0.25rem' }} />
+                            {time}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </td>
-                  <td>{med.startDate}</td>
+                  <td>{med.startDate ? (typeof med.startDate === 'object' ? new Date(med.startDate).toLocaleDateString() : med.startDate) : (med.scannedAt ? new Date(med.scannedAt).toLocaleDateString() : '-')}</td>
                   <td>
                     {med.addedToCalendar ? (
                       <span className="badge badge-success">
@@ -300,7 +334,7 @@ export default function MedTable() {
                     </button>
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>

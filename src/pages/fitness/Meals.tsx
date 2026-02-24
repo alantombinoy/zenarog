@@ -1,25 +1,25 @@
-import { useState, useEffect } from 'react'
-import { collection, addDoc, query, where, getDocs, deleteDoc, doc, orderBy } from 'firebase/firestore'
-import { db } from '../../services/firebase'
-import { auth } from '../../services/firebase'
-import { Plus, Trash2, UtensilsCrossed, Clock, Flame } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { collection, addDoc, query, where, deleteDoc, doc, onSnapshot, serverTimestamp } from 'firebase/firestore'
+import { db, auth } from '../../services/firebase'
+import { Plus, Trash2, UtensilsCrossed } from 'lucide-react'
 
-interface FoodItem {
+interface FoodItem { 
   id: string
   name: string
   calories: number
   protein: number
   carbs: number
   fat: number
-  quantity: number
+  quantity: number 
 }
 
-interface Meal {
+interface Meal { 
   id: string
-  date: Date
-  type: 'breakfast' | 'lunch' | 'dinner' | 'snack'
+  userId: string
+  type: string
   foods: FoodItem[]
   totalCalories: number
+  date: any
 }
 
 const commonFoods = [
@@ -33,85 +33,77 @@ const commonFoods = [
   { name: 'Greek Yogurt', calories: 100, protein: 17, carbs: 6, fat: 0.7 }
 ]
 
+function getUserId(): string {
+  return auth.currentUser?.uid || 'demo-user'
+}
+
 export default function Meals() {
   const [meals, setMeals] = useState<Meal[]>([])
   const [showForm, setShowForm] = useState(false)
-  const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>('lunch')
+  const [mealType, setMealType] = useState('lunch')
   const [selectedFoods, setSelectedFoods] = useState<FoodItem[]>([])
   const [customFood, setCustomFood] = useState({ name: '', calories: '', protein: '', carbs: '', fat: '', quantity: '1' })
   const [loading, setLoading] = useState(true)
+  const [userId, setUserId] = useState<string>(getUserId())
 
   useEffect(() => {
-    fetchMeals()
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setUserId(user?.uid || 'demo-user')
+    })
+    return () => unsubscribe()
   }, [])
 
-  const fetchMeals = async () => {
-    const user = auth.currentUser
-    if (!user) return
-
-    try {
-      const q = query(
-        collection(db, 'meals'),
-        where('userId', '==', user.uid),
-        orderBy('date', 'desc')
-      )
-      const snapshot = await getDocs(q)
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        date: doc.data().date?.toDate()
-      })) as Meal[]
-      setMeals(data)
-    } catch (error) {
-      console.error('Error:', error)
-      setMeals([
-        {
-          id: '1',
-          date: new Date(),
-          type: 'breakfast',
-          foods: [
-            { id: '1', name: 'Oatmeal', calories: 150, protein: 5, carbs: 27, fat: 3, quantity: 1 },
-            { id: '2', name: 'Banana', calories: 105, protein: 1, carbs: 27, fat: 0.4, quantity: 1 }
-          ],
-          totalCalories: 255
-        },
-        {
-          id: '2',
-          date: new Date(),
-          type: 'lunch',
-          foods: [
-            { id: '3', name: 'Chicken Breast', calories: 165, protein: 31, carbs: 0, fat: 3.6, quantity: 1 },
-            { id: '4', name: 'Rice (1 cup)', calories: 206, protein: 4, carbs: 45, fat: 0.4, quantity: 1 }
-          ],
-          totalCalories: 371
-        }
-      ])
-    } finally {
+  useEffect(() => {
+    if (!db) {
       setLoading(false)
+      return
     }
-  }
+
+    const q = query(collection(db, 'meals'), where('userId', '==', userId))
+    
+    const unsubscribe = onSnapshot(q, 
+      (snapshot) => { 
+        const data = snapshot.docs.map(d => {
+          const docData = d.data()
+          return {
+            id: d.id,
+            userId: docData.userId,
+            type: docData.type,
+            foods: docData.foods || [],
+            totalCalories: docData.totalCalories || 0,
+            date: docData.date
+          } as Meal
+        }).sort((a, b) => {
+          const dateA = a.date?.toDate?.()?.getTime() || 0
+          const dateB = b.date?.toDate?.()?.getTime() || 0
+          return dateB - dateA
+        })
+        setMeals(data)
+        setLoading(false)
+      },
+      (error) => {
+        console.error('Meals snapshot error:', error)
+        setLoading(false)
+      }
+    )
+    return () => unsubscribe()
+  }, [userId])
 
   const addCommonFood = (food: typeof commonFoods[0]) => {
-    const newFood: FoodItem = {
-      id: Date.now().toString(),
-      ...food,
-      quantity: 1
-    }
-    setSelectedFoods([...selectedFoods, newFood])
+    setSelectedFoods([...selectedFoods, { ...food, id: Date.now().toString(), quantity: 1 }])
   }
 
-  const addCustomFood = () => {
+  const addCustomFood = () => { 
     if (!customFood.name || !customFood.calories) return
-    const newFood: FoodItem = {
-      id: Date.now().toString(),
-      name: customFood.name,
-      calories: parseInt(customFood.calories) || 0,
-      protein: parseInt(customFood.protein) || 0,
-      carbs: parseInt(customFood.carbs) || 0,
-      fat: parseFloat(customFood.fat) || 0,
-      quantity: parseInt(customFood.quantity) || 1
-    }
-    setSelectedFoods([...selectedFoods, newFood])
+    setSelectedFoods([...selectedFoods, { 
+      id: Date.now().toString(), 
+      name: customFood.name, 
+      calories: parseInt(customFood.calories) || 0, 
+      protein: parseInt(customFood.protein) || 0, 
+      carbs: parseInt(customFood.carbs) || 0, 
+      fat: parseFloat(customFood.fat) || 0, 
+      quantity: parseInt(customFood.quantity) || 1 
+    }])
     setCustomFood({ name: '', calories: '', protein: '', carbs: '', fat: '', quantity: '1' })
   }
 
@@ -119,47 +111,53 @@ export default function Meals() {
     setSelectedFoods(selectedFoods.filter(f => f.id !== id))
   }
 
-  const saveMeal = async () => {
-    const user = auth.currentUser
-    if (!user || selectedFoods.length === 0) return
-
+  const saveMeal = useCallback(async () => {
+    if (selectedFoods.length === 0) return
+    if (!auth.currentUser) {
+      alert('Please log in to save meals')
+      return
+    }
+    
+    const currentUserId = auth.currentUser.uid
     const totalCalories = selectedFoods.reduce((sum, f) => sum + f.calories * f.quantity, 0)
-
     try {
-      await addDoc(collection(db, 'meals'), {
-        userId: user.uid,
-        date: new Date(),
-        type: mealType,
-        foods: selectedFoods,
-        totalCalories
+      await addDoc(collection(db, 'meals'), { 
+        userId: currentUserId, 
+        date: serverTimestamp(), 
+        type: mealType, 
+        foods: selectedFoods, 
+        totalCalories 
       })
       setShowForm(false)
       setSelectedFoods([])
-      fetchMeals()
     } catch (error) {
       console.error('Error saving meal:', error)
+      alert('Failed to save meal')
     }
-  }
+  }, [selectedFoods, mealType])
 
-  const deleteMeal = async (id: string) => {
+  const deleteMeal = async (id: string) => { 
     try {
       await deleteDoc(doc(db, 'meals', id))
-      setMeals(meals.filter(m => m.id !== id))
     } catch (error) {
-      console.error('Error deleting:', error)
+      console.error('Error deleting meal:', error)
     }
   }
 
-  const totalCaloriesToday = meals
-    .filter(m => m.date.toDateString() === new Date().toDateString())
-    .reduce((sum, m) => sum + m.totalCalories, 0)
+  const totalCaloriesToday = meals.reduce((sum, m) => {
+    const mealDate = m.date?.toDate?.()
+    if (mealDate?.toDateString() === new Date().toDateString()) {
+      return sum + (m.totalCalories || 0)
+    }
+    return sum
+  }, 0)
 
   return (
     <div>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between' }}>
         <div>
           <h1 className="page-title">Meals</h1>
-          <p className="page-subtitle">Track your daily nutrition • Today: {totalCaloriesToday} cal</p>
+          <p className="page-subtitle">Today: {totalCaloriesToday} cal</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
           <Plus size={18} /> Add Meal
@@ -168,94 +166,63 @@ export default function Meals() {
 
       {showForm && (
         <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <h3 style={{ marginBottom: '1rem' }}>Add Meal</h3>
-
+          <h3>Add Meal</h3>
           <div className="form-group">
             <label className="form-label">Meal Type</label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              {(['breakfast', 'lunch', 'dinner', 'snack'] as const).map(type => (
-                <button
-                  key={type}
-                  className={`btn ${mealType === type ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setMealType(type)}
+              {['breakfast', 'lunch', 'dinner', 'snack'].map(t => (
+                <button 
+                  key={t} 
+                  className={`btn ${mealType === t ? 'btn-primary' : 'btn-secondary'}`} 
+                  onClick={() => setMealType(t)}
                 >
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
                 </button>
               ))}
             </div>
           </div>
-
+          
           <div className="form-group">
             <label className="form-label">Quick Add</label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-              {commonFoods.map(food => (
-                <button
-                  key={food.name}
-                  className="btn btn-secondary"
-                  onClick={() => addCommonFood(food)}
+              {commonFoods.map(f => (
+                <button 
+                  key={f.name} 
+                  className="btn btn-secondary" 
+                  onClick={() => addCommonFood(f)} 
                   style={{ fontSize: '0.8rem' }}
                 >
-                  {food.name} ({food.calories})
+                  {f.name} ({f.calories})
                 </button>
               ))}
             </div>
           </div>
-
+          
           <div className="form-group">
-            <label className="form-label">Or add custom food</label>
+            <label className="form-label">Custom Food</label>
             <div className="grid-3">
-              <input
-                type="text"
-                className="input"
-                placeholder="Food name"
-                value={customFood.name}
-                onChange={(e) => setCustomFood({ ...customFood, name: e.target.value })}
-              />
-              <input
-                type="number"
-                className="input"
-                placeholder="Calories"
-                value={customFood.calories}
-                onChange={(e) => setCustomFood({ ...customFood, calories: e.target.value })}
-              />
-              <input
-                type="number"
-                className="input"
-                placeholder="Quantity"
-                value={customFood.quantity}
-                onChange={(e) => setCustomFood({ ...customFood, quantity: e.target.value })}
-              />
+              <input type="text" className="input" placeholder="Name" value={customFood.name} onChange={e => setCustomFood({...customFood, name: e.target.value})} />
+              <input type="number" className="input" placeholder="Cal" value={customFood.calories} onChange={e => setCustomFood({...customFood, calories: e.target.value})} />
+              <input type="number" className="input" placeholder="Qty" value={customFood.quantity} onChange={e => setCustomFood({...customFood, quantity: e.target.value})} />
             </div>
             <button className="btn btn-secondary" onClick={addCustomFood} style={{ marginTop: '0.5rem' }}>
-              <Plus size={16} /> Add Custom
+              <Plus size={16}/> Add
             </button>
           </div>
 
           {selectedFoods.length > 0 && (
             <div style={{ marginBottom: '1rem' }}>
-              <label className="form-label">Selected Foods</label>
-              {selectedFoods.map(food => (
-                <div key={food.id} className="meal-item">
-                  <div>
-                    <strong>{food.name}</strong>
-                    <span style={{ color: 'var(--gray-500)', marginLeft: '0.5rem' }}>
-                      ×{food.quantity}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <span>{food.calories * food.quantity} cal</span>
-                    <button className="btn btn-secondary" onClick={() => removeFood(food.id)} style={{ padding: '0.25rem' }}>
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
+              {selectedFoods.map(f => (
+                <div key={f.id} className="meal-item">
+                  <span><strong>{f.name}</strong> x{f.quantity} = {f.calories * f.quantity} cal</span>
+                  <button className="btn btn-secondary" onClick={() => removeFood(f.id)}>
+                    <Trash2 size={14}/>
+                  </button>
                 </div>
               ))}
-              <div style={{ textAlign: 'right', fontWeight: 600, marginTop: '0.5rem' }}>
-                Total: {selectedFoods.reduce((sum, f) => sum + f.calories * f.quantity, 0)} calories
-              </div>
             </div>
           )}
-
+          
           <button className="btn btn-primary" onClick={saveMeal} disabled={selectedFoods.length === 0}>
             Save Meal
           </button>
@@ -263,46 +230,41 @@ export default function Meals() {
       )}
 
       <div>
-        {meals.length === 0 ? (
+        {loading ? (
           <div className="empty-state">
-            <UtensilsCrossed size={48} style={{ marginBottom: '1rem', opacity: 0.3 }} />
-            <p>No meals logged yet. Start tracking your nutrition!</p>
+            <p>Loading...</p>
+          </div>
+        ) : meals.length === 0 ? (
+          <div className="empty-state">
+            <UtensilsCrossed size={48} style={{opacity: 0.3}}/>
+            <p>No meals logged yet</p>
           </div>
         ) : (
-          meals.map(meal => (
-            <div key={meal.id} className="card" style={{ marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+          meals.map(m => (
+            <div key={m.id} className="card" style={{marginBottom: '1rem'}}>
+              <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem'}}>
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span className="badge badge-success">{meal.type}</span>
-                    <span style={{ color: 'var(--gray-500)', fontSize: '0.875rem' }}>
-                      {meal.date.toLocaleDateString()}
-                    </span>
-                  </div>
+                  <span className="badge badge-success">{m.type}</span>
+                  <span style={{marginLeft: '0.5rem', color: 'var(--gray-500)'}}>
+                    {m.date?.toDate?.()?.toLocaleDateString() || ''}
+                  </span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <span style={{ fontWeight: 600 }}>{meal.totalCalories} cal</span>
-                  <button className="btn btn-secondary" onClick={() => deleteMeal(meal.id)} style={{ padding: '0.5rem' }}>
-                    <Trash2 size={16} />
+                <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
+                  <span style={{fontWeight: 600}}>{m.totalCalories} cal</span>
+                  <button className="btn btn-secondary" onClick={() => deleteMeal(m.id)}>
+                    <Trash2 size={16}/>
                   </button>
                 </div>
               </div>
-
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                {meal.foods.map((food, i) => (
-                  <span
-                    key={i}
-                    style={{
-                      padding: '0.375rem 0.75rem',
-                      background: 'var(--gray-100)',
-                      borderRadius: '9999px',
-                      fontSize: '0.8rem'
-                    }}
-                  >
-                    {food.name} ×{food.quantity}
-                  </span>
-                ))}
-              </div>
+              {m.foods && m.foods.length > 0 && (
+                <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                  {m.foods.map((food, idx) => (
+                    <span key={idx} style={{ display: 'inline-block', marginRight: '0.75rem', marginBottom: '0.25rem' }}>
+                      {food.name} {food.quantity > 1 && `x${food.quantity}`}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           ))
         )}

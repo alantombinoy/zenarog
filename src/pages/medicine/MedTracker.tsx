@@ -30,29 +30,25 @@ export default function MedTracker() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [todayStats, setTodayStats] = useState({ taken: 0, total: 0, streak: 0 })
 
-  useEffect(() => {
-    fetchMedications()
-  }, [])
-
-  useEffect(() => {
-    if (medications.length > 0) {
-      generateTodayLogs()
-    }
-  }, [medications, selectedDate])
-
-  const fetchMedications = async () => {
+  const fetchMedications = () => {
     try {
       const userId = auth.currentUser?.uid || 'demo-user'
       const q = query(collection(db, 'medications'), where('userId', '==', userId))
       
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const meds = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Medication[]
-        setMedications(meds)
-        setLoading(false)
-      })
+      const unsubscribe = onSnapshot(q, 
+        (snapshot) => {
+          const meds = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as Medication[]
+          setMedications(meds)
+          setLoading(false)
+        },
+        (error) => {
+          console.error('MedTracker snapshot error:', error)
+          setLoading(false)
+        }
+      )
 
       return () => unsubscribe()
     } catch (error) {
@@ -61,7 +57,7 @@ export default function MedTracker() {
     }
   }
 
-  const generateTodayLogs = async () => {
+  const generateTodayLogs = () => {
     const userId = auth.currentUser?.uid || 'demo-user'
     const dateStr = selectedDate
 
@@ -72,43 +68,65 @@ export default function MedTracker() {
         where('date', '==', dateStr)
       )
       
-      const unsubscribe = onSnapshot(logsQuery, (snapshot) => {
-        const existingLogs = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          takenAt: doc.data().takenAt?.toDate()
-        })) as MedicationLog[]
-        
-        const newLogs: MedicationLog[] = []
-        
-        medications.forEach(med => {
-          med.times.forEach(time => {
-            const existing = existingLogs.find(l => l.medId === med.id && l.scheduledTime === time)
-            if (existing) {
-              newLogs.push(existing)
-            } else {
-              newLogs.push({
-                id: `${med.id}-${time}`,
-                medId: med.id,
-                medName: med.name,
-                dosage: med.dosage,
-                scheduledTime: time,
-                taken: false,
-                date: dateStr
-              })
-            }
+      const unsubscribe = onSnapshot(logsQuery, 
+        (snapshot) => {
+          const existingLogs = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            takenAt: doc.data().takenAt?.toDate()
+          })) as MedicationLog[]
+          
+          const newLogs: MedicationLog[] = []
+          
+          medications.forEach(med => {
+            med.times.forEach(time => {
+              const existing = existingLogs.find(l => l.medId === med.id && l.scheduledTime === time)
+              if (existing) {
+                newLogs.push(existing)
+              } else {
+                newLogs.push({
+                  id: `${med.id}-${time}`,
+                  medId: med.id,
+                  medName: med.name,
+                  dosage: med.dosage,
+                  scheduledTime: time,
+                  taken: false,
+                  date: dateStr
+                })
+              }
+            })
           })
-        })
-        
-        setLogs(newLogs.sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime)))
-        updateStats(newLogs)
-      })
+          
+          setLogs(newLogs.sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime)))
+          updateStats(newLogs)
+        },
+        (error) => {
+          console.error('generateTodayLogs snapshot error:', error)
+        }
+      )
 
       return () => unsubscribe()
     } catch (error) {
       console.error('Error generating logs:', error)
     }
   }
+
+  useEffect(() => {
+    const cleanup = fetchMedications()
+    return () => { 
+      if (cleanup && typeof cleanup === 'function') cleanup() 
+    }
+  }, [auth])
+
+  useEffect(() => {
+    let cleanup: (() => void) | undefined
+    if (medications.length > 0) {
+      cleanup = generateTodayLogs()
+    }
+    return () => { 
+      if (cleanup) cleanup() 
+    }
+  }, [medications, selectedDate, auth])
 
   const updateStats = (currentLogs: MedicationLog[]) => {
     const taken = currentLogs.filter(l => l.taken).length
