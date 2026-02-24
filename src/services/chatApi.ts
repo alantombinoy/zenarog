@@ -39,7 +39,7 @@ export async function sendChatMessage(messages: ChatMessage[], userMessage: stri
           'X-Title': 'Zenarog Medical Assistant'
         },
         body: JSON.stringify({
-          model: 'qwen/qwen3-vl-30b-a3b-thinking',
+          model: 'nvidia/nemotron-3-nano-30b-a3b:free',
           messages: conversation,
           max_tokens: 500,
           temperature: 0.7
